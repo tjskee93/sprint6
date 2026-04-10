@@ -12,7 +12,7 @@ import ru.yandex.practicum.shop.client.payment.model.PaymentRequest;
 import ru.yandex.practicum.shop.client.payment.model.PaymentResponse;
 
 @Service
-public class PaymentClientService implements ApiApi {
+public class PaymentClientService {
 
     private final WebClient webClient;
 
@@ -22,53 +22,25 @@ public class PaymentClientService implements ApiApi {
                 .build();
     }
 
-    @Override
-    public Mono<ResponseEntity<BalanceResponse>> getBalance(ServerWebExchange exchange) {
+    public Mono<Long> getBalance() {
         return webClient.get()
                 .uri("/api/balance")
                 .retrieve()
                 .bodyToMono(BalanceResponse.class)
-                .map(ResponseEntity::ok)
-                .onErrorResume(e -> {
-                    return Mono.just(ResponseEntity.status(503).build());
-                });
-    }
-
-    @Override
-    public Mono<ResponseEntity<PaymentResponse>> processPayment(Mono<PaymentRequest> paymentRequest, ServerWebExchange exchange) {
-        return paymentRequest.flatMap(request ->
-                webClient.post()
-                        .uri("/api/payment")
-                        .bodyValue(request)
-                        .retrieve()
-                        .bodyToMono(PaymentResponse.class)
-                        .map(ResponseEntity::ok)
-                        .onErrorResume(e -> {
-                            return Mono.just(ResponseEntity.status(503).build());
-                        })
-        );
-    }
-
-    public Mono<Long> getBalance() {
-        return getBalance(null)
-                .map(response -> {
-                    if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                        return response.getBody().getBalance();
-                    }
-                    return -1L;
-                });
+                .map(BalanceResponse::getBalance)
+                .onErrorReturn(-1L);
     }
 
     public Mono<Boolean> processPayment(long amount) {
         PaymentRequest request = new PaymentRequest();
         request.setAmount(amount);
 
-        return processPayment(Mono.just(request), null)
-                .map(response -> {
-                    if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                        return response.getBody().getSuccess();
-                    }
-                    return false;
-                });
+        return webClient.post()
+                .uri("/api/payment")
+                .bodyValue(request)
+                .retrieve()
+                .bodyToMono(PaymentResponse.class)
+                .map(PaymentResponse::getSuccess)
+                .onErrorReturn(false);
     }
 }
