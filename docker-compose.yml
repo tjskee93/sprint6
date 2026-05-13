@@ -1,0 +1,26 @@
+version: '3.8'
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  payment-service:
+    image: eclipse-temurin:21-jre-alpine
+    working_dir: /app
+    command: java -jar payment-service-0.0.1-SNAPSHOT.jar
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./payment-service/target/payment-service-0.0.1-SNAPSHOT.jar:/app/payment-service-0.0.1-SNAPSHOT.jar
+
+  shop:
+    build: ./shop
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
+      - payment-service
+    environment:
+      SPRING_DATA_REDIS_HOST: redis
+      PAYMENT_SERVICE_URL: http://payment-service:8081

@@ -1,5 +1,19 @@
-# sprint6
+# sprint7
+# My Market App (с платежами и кешем)
 
+## Сборка
+mvn clean package
+
+## Запуск (Docker Compose)
+docker-compose up
+
+## Тесты
+mvn test
+
+## Доступ
+- Витрина: http://localhost:8080
+- Сервис платежей: http://localhost:8081/api/balance
+- 
 Веб-приложение для просмотра товаров, добавления в корзину и оформления заказов.
 ## Функциональность
 
