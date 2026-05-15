@@ -16,6 +16,13 @@
                     <h2>
                         <span class="badge text-bg-success">Витрина магазина</span>
                     </h2>
+                    <span class="badge bg-info me-2">
+                        Привет, <span th:text="${username}"></span>!
+                    </span>
+                    <form th:action="@{/logout}" method="post" class="d-inline">
+                        <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                        <button type="submit" class="btn btn-outline-secondary bi bi-box-arrow-right"> Выйти</button>
+                    </form>
                     <a href="/cart/items" class="btn btn-secondary bi bi-cart4 ms-auto"> Корзина</a>
                     <a href="/items" class="btn btn-secondary bi bi-arrow-left-square"> Главная</a>
                 </div>

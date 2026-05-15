@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Flux;
@@ -11,6 +13,7 @@ import reactor.core.publisher.Mono;
 import ru.yandex.practicum.mymarket.model.dto.ItemDTO;
 import ru.yandex.practicum.mymarket.service.CartService;
 import ru.yandex.practicum.mymarket.service.PaymentClientService;
+import ru.yandex.practicum.mymarket.service.UserService;
 
 import java.util.List;
 
@@ -29,14 +32,19 @@ class CartControllerTest {
     @MockitoBean
     private PaymentClientService paymentClientService;
 
+    @MockitoBean
+    private UserService userService;
+
     @Test
+    @WithMockUser(username = "testuser", roles = "USER")
     void getCart_ShouldReturnCartPage() throws Exception {
         List<ItemDTO> items = List.of(
                 new ItemDTO(1L, "Тестовый товар", "Описание", "images/test.jpg", 1000L, 2)
         );
-        when(cartService.getCartItems()).thenReturn(Flux.fromIterable(items));
-        when(cartService.getCartTotal()).thenReturn(Mono.just(2000L));
+        when(cartService.getCartItems(1L)).thenReturn(Flux.fromIterable(items));
+        when(cartService.getCartTotal(1L)).thenReturn(Mono.just(2000L));
         when(paymentClientService.getBalance()).thenReturn(Mono.just(10000L));
+        when(userService.getCurrentUserId()).thenReturn(Mono.just(1L));
 
         webTestClient.get()
                 .uri("/cart/items")
@@ -50,13 +58,15 @@ class CartControllerTest {
     }
 
     @Test
+    @WithMockUser(username = "testuser", roles = "USER")
     void getCart_WhenPaymentServiceUnavailable_ShouldShowError() throws Exception {
         List<ItemDTO> items = List.of(
                 new ItemDTO(1L, "Тестовый товар", "Описание", "images/test.jpg", 1000L, 2)
         );
-        when(cartService.getCartItems()).thenReturn(Flux.fromIterable(items));
-        when(cartService.getCartTotal()).thenReturn(Mono.just(2000L));
+        when(cartService.getCartItems(1L)).thenReturn(Flux.fromIterable(items));
+        when(cartService.getCartTotal(1L)).thenReturn(Mono.just(2000L));
         when(paymentClientService.getBalance()).thenReturn(Mono.just(-1L));
+        when(userService.getCurrentUserId()).thenReturn(Mono.just(1L));
 
         webTestClient.get()
                 .uri("/cart/items")
@@ -69,13 +79,15 @@ class CartControllerTest {
     }
 
     @Test
+    @WithMockUser(username = "testuser", roles = "USER")
     void getCart_WhenInsufficientFunds_ShouldShowError() throws Exception {
         List<ItemDTO> items = List.of(
                 new ItemDTO(1L, "Тестовый товар", "Описание", "images/test.jpg", 1000L, 2)
         );
-        when(cartService.getCartItems()).thenReturn(Flux.fromIterable(items));
-        when(cartService.getCartTotal()).thenReturn(Mono.just(2000L));
+        when(cartService.getCartItems(1L)).thenReturn(Flux.fromIterable(items));
+        when(cartService.getCartTotal(1L)).thenReturn(Mono.just(2000L));
         when(paymentClientService.getBalance()).thenReturn(Mono.just(500L));
+        when(userService.getCurrentUserId()).thenReturn(Mono.just(1L));
 
         webTestClient.get()
                 .uri("/cart/items")
@@ -88,16 +100,21 @@ class CartControllerTest {
     }
 
     @Test
-    void updateCart_WithPlusAction_ShouldAddToCart() throws Exception {
+    @WithMockUser(username = "testuser", roles = "USER")
+    void updateCart_WithPlusAction_ShouldAddToCart() {
+        when(userService.getCurrentUserId()).thenReturn(Mono.just(1L));
+
         List<ItemDTO> items = List.of(
                 new ItemDTO(1L, "Тестовый товар", "Описание", "images/test.jpg", 1000L, 3)
         );
-        when(cartService.getCartItems()).thenReturn(Flux.fromIterable(items));
-        when(cartService.getCartTotal()).thenReturn(Mono.just(3000L));
-        when(cartService.addToCart(anyLong())).thenReturn(Mono.empty());
+        when(cartService.getCartItems(1L)).thenReturn(Flux.fromIterable(items));
+        when(cartService.getCartTotal(1L)).thenReturn(Mono.just(3000L));
+        when(cartService.addToCart(anyLong(), anyLong())).thenReturn(Mono.empty());
         when(paymentClientService.getBalance()).thenReturn(Mono.just(10000L));
 
-        webTestClient.post()
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.csrf())//добавляем токен
+                .post()
                 .uri("/cart/items")
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .bodyValue("id=1&action=PLUS")
@@ -109,6 +126,6 @@ class CartControllerTest {
                     org.assertj.core.api.Assertions.assertThat(body).contains("3000");
                 });
 
-        verify(cartService, times(1)).addToCart(1L);
+        verify(cartService, times(1)).addToCart(1L, 1L);
     }
 }

@@ -1,5 +1,6 @@
 package ru.yandex.practicum.mymarket.service;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -15,11 +16,8 @@ import ru.yandex.practicum.shop.client.payment.model.PaymentResponse;
 public class PaymentClientService {
 
     private final WebClient webClient;
-
-    public PaymentClientService(@Value("${payment.service.url}") String paymentUrl) {
-        this.webClient = WebClient.builder()
-                .baseUrl(paymentUrl)
-                .build();
+    public PaymentClientService(@Qualifier("paymentWebClient") WebClient paymentWebClient) {
+        this.webClient = paymentWebClient;
     }
 
     public Mono<Long> getBalance() {

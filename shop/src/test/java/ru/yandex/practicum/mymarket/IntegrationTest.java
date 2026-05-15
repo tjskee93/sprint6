@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
@@ -31,10 +33,16 @@ class IntegrationTest {
     @MockitoBean
     private PaymentClientService paymentClientService;
 
+    private WebTestClient webTestClientWithCsrf;
+
     private Long testItemId;
 
     @BeforeEach
     void setUp() {
+        // Создаем клиент с CSSF для POST запросов
+        webTestClientWithCsrf = webTestClient.mutate()
+                .apply(SecurityMockServerConfigurers.csrf())
+                .build();
         // Очищаем БД
         itemRepository.deleteAll().block();
 
@@ -62,6 +70,7 @@ class IntegrationTest {
     }
 
     @Test
+    @WithMockUser(username = "testuser", roles = "USER", password = "password")
     void fullWorkflow_ShouldWorkCorrectly() {
         // 1. Проверка главной страницы
         webTestClient.get()
@@ -70,7 +79,7 @@ class IntegrationTest {
                 .expectStatus().isOk();
 
         // 2. Добавление товара в корзину
-        webTestClient.post()
+        webTestClientWithCsrf.post()
                 .uri("/items")
                 .bodyValue("id=" + testItemId + "&action=PLUS&pageNumber=1&pageSize=5")
                 .header("Content-Type", "application/x-www-form-urlencoded")
@@ -86,7 +95,7 @@ class IntegrationTest {
                 .value(containsString("Интеграционный тест"));
 
         // 4. Оформление покупки
-        webTestClient.post()
+        webTestClientWithCsrf.post()
                 .uri("/buy")
                 .exchange()
                 .expectStatus().is3xxRedirection()
@@ -110,13 +119,14 @@ class IntegrationTest {
     }
 
     @Test
+    @WithMockUser(username = "testuser", roles = "USER", password = "password")
     void fullWorkflow_WithInsufficientFunds_ShouldNotCreateOrder() {
         // Настраиваем недостаточный баланс
         when(paymentClientService.getBalance()).thenReturn(Mono.just(500L));
         when(paymentClientService.processPayment(anyLong())).thenReturn(Mono.just(false));
 
         // Добавляем товар в корзину
-        webTestClient.post()
+        webTestClientWithCsrf.post()
                 .uri("/items")
                 .bodyValue("id=" + testItemId + "&action=PLUS&pageNumber=1&pageSize=5")
                 .header("Content-Type", "application/x-www-form-urlencoded")
@@ -124,7 +134,7 @@ class IntegrationTest {
                 .expectStatus().is3xxRedirection();
 
         // Пытаемся оформить покупку
-        webTestClient.post()
+        webTestClientWithCsrf.post()
                 .uri("/buy")
                 .exchange()
                 .expectStatus().is3xxRedirection()

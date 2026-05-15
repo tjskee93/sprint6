@@ -36,7 +36,7 @@ class OrderItemRepositoryTest extends MyMarketAppApplicationTests {
         Item item = itemRepository.save(new Item(null, "Товар", "Описание", null, 100L, 0)).block();
         testItemId = item.getId();
 
-        Order order = orderRepository.save(new Order(null, LocalDateTime.now(), null, null)).block();
+        Order order = orderRepository.save(new Order(null, null, LocalDateTime.now(), null, null)).block();
         testOrderId = order.getId();
 
         OrderItem orderItem = new OrderItem(testOrderId, testItemId, "Товар", 100L, 2);

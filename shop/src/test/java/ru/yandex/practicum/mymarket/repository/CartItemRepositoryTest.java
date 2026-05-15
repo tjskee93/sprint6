@@ -31,8 +31,8 @@ class CartItemRepositoryTest extends MyMarketAppApplicationTests {
         testItemId1 = item1.getId();
         testItemId2 = item2.getId();
 
-        CartItem cartItem1 = new CartItem(testItemId1, 2);
-        CartItem cartItem2 = new CartItem(testItemId2, 3);
+        CartItem cartItem1 = new CartItem(1L, testItemId1, 2);
+        CartItem cartItem2 = new CartItem(1L, testItemId2, 3);
 
         cartItemRepository.save(cartItem1).block();
         cartItemRepository.save(cartItem2).block();
@@ -40,7 +40,7 @@ class CartItemRepositoryTest extends MyMarketAppApplicationTests {
 
     @Test
     void findByItemId_ShouldReturnCartItem() {
-        CartItem cartItem = cartItemRepository.findByItemId(testItemId1).block();
+        CartItem cartItem = cartItemRepository.findByUserIdAndItemId(1L, testItemId1).block();
 
         assertThat(cartItem).isNotNull();
         assertThat(cartItem.getItemId()).isEqualTo(testItemId1);
@@ -56,7 +56,7 @@ class CartItemRepositoryTest extends MyMarketAppApplicationTests {
 
     @Test
     void deleteByItemId_ShouldRemoveItemForProduct() {
-        cartItemRepository.deleteByItemId(testItemId1).block();
+        cartItemRepository.deleteByUserIdAndItemId(1L, testItemId1).block();
 
         Long count = cartItemRepository.findAll().count().block();
 

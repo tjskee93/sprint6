@@ -1,5 +1,17 @@
 version: '3.8'
 services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.5
+    command: start-dev --import-realm
+    environment:
+      KC_DB: dev-file
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./keycloak-export:/opt/keycloak/data/import
+
   redis:
     image: redis:7-alpine
     ports:
@@ -11,6 +23,12 @@ services:
     command: java -jar payment-service-0.0.1-SNAPSHOT.jar
     ports:
       - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      KEYCLOAK_ISSUER_URI: http://localhost:8082/realms/master
+    depends_on:
+      - keycloak
+      - redis
     volumes:
       - ./payment-service/target/payment-service-0.0.1-SNAPSHOT.jar:/app/payment-service-0.0.1-SNAPSHOT.jar
 
@@ -18,9 +36,12 @@ services:
     build: ./shop
     ports:
       - "8080:8080"
-    depends_on:
-      - redis
-      - payment-service
     environment:
+      SPRING_PROFILES_ACTIVE: docker
       SPRING_DATA_REDIS_HOST: redis
       PAYMENT_SERVICE_URL: http://payment-service:8081
+      KEYCLOAK_ISSUER_URI: http://localhost:8082/realms/master
+    depends_on:
+      - keycloak
+      - redis
+      - payment-service

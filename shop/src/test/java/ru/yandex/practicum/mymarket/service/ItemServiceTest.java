@@ -89,10 +89,10 @@ class ItemServiceTest {
     void getItems_ShouldReturnPaginatedItems() {
         when(itemRepository.findAllWithPagination(3, 0))
                 .thenReturn(Flux.just(testItem));
-        when(cartItemRepository.findByItemId(anyLong()))
+        when(cartItemRepository.findByUserIdAndItemId(anyLong(), anyLong()))
                 .thenReturn(Mono.empty());
 
-        var result = itemService.getItems(null, "NO", 1, 3).block();
+        var result = itemService.getItems(null, "NO", 1, 3,1L).block();
 
         assertThat(result).isNotNull();
         assertThat(result.size()).isEqualTo(1);
@@ -102,10 +102,10 @@ class ItemServiceTest {
     void getItems_WithSearch_ShouldReturnFilteredItems() {
         when(itemRepository.searchByTitleOrDescription(eq("тест"), eq(10), eq(0)))
                 .thenReturn(Flux.just(testItem));
-        when(cartItemRepository.findByItemId(anyLong()))
+        when(cartItemRepository.findByUserIdAndItemId(anyLong(), anyLong()))
                 .thenReturn(Mono.empty());
 
-        var result = itemService.getItems("тест", "NO", 1, 10).block();
+        var result = itemService.getItems("тест", "NO", 1, 10, 1L).block();
 
         assertThat(result).isNotNull();
         long count = result.stream()
@@ -132,12 +132,12 @@ class ItemServiceTest {
 
     @Test
     void updateCart_ShouldEvictCache() {
-        when(cartService.addToCart(1L)).thenReturn(Mono.empty());
+        when(cartService.addToCart(1L, 1L)).thenReturn(Mono.empty());
         when(itemCacheService.deleteItem(1L)).thenReturn(Mono.just(true));
 
-        itemService.updateCart(1L, "PLUS").block();
+        itemService.updateCart(1L,1L, "PLUS").block();
 
-        verify(cartService, times(1)).addToCart(1L);
+        verify(cartService, times(1)).addToCart(1L,1L);
         verify(itemCacheService, times(1)).deleteItem(1L);
     }
 
@@ -152,12 +152,12 @@ class ItemServiceTest {
 
     @Test
     void getItemWithCartCount_ShouldReturnItemWithCountFromCart() {
-        CartItem cartItem = new CartItem(1L, 3);
+        CartItem cartItem = new CartItem(1L,1L, 3);
 
         when(itemCacheService.getItem(1L)).thenReturn(Mono.just(testItem));
-        when(cartItemRepository.findByItemId(1L)).thenReturn(Mono.just(cartItem));
+        when(cartItemRepository.findByUserIdAndItemId(1L,1L)).thenReturn(Mono.just(cartItem));
 
-        ItemDTO result = itemService.getItemWithCartCount(1L).block();
+        ItemDTO result = itemService.getItemWithCartCount(1L,1L).block();
 
         assertThat(result).isNotNull();
         assertThat(result.id()).isEqualTo(1L);

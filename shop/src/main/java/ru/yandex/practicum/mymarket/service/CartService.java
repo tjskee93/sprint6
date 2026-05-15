@@ -20,24 +20,24 @@ public class CartService {
     private ItemRepository itemRepository;
 
     @Transactional
-    public Mono<Void> addToCart(Long itemId) {
+    public Mono<Void> addToCart(Long userId, Long itemId) {
         return itemRepository.findById(itemId)
                 .switchIfEmpty(Mono.error(new RuntimeException("Товар не найден")))
-                .flatMap(item -> cartItemRepository.findByItemId(itemId)
+                .flatMap(item -> cartItemRepository.findByUserIdAndItemId(userId, itemId)
                         .flatMap(cartItem -> {
                             cartItem.setQuantity(cartItem.getQuantity() + 1);
                             return cartItemRepository.save(cartItem);
                         })
                         .switchIfEmpty(Mono.defer(() ->
-                                cartItemRepository.save(new CartItem(itemId, 1))
+                                cartItemRepository.save(new CartItem(userId, itemId, 1))
                         ))
                 )
                 .then();
     }
 
     @Transactional
-    public Mono<Void> removeFromCart(Long itemId) {
-        return cartItemRepository.findByItemId(itemId)
+    public Mono<Void> removeFromCart(Long userId, Long itemId) {
+        return cartItemRepository.findByUserIdAndItemId(userId, itemId)
                 .flatMap(cartItem -> {
                     if (cartItem.getQuantity() > 1) {
                         cartItem.setQuantity(cartItem.getQuantity() - 1);
@@ -50,12 +50,12 @@ public class CartService {
     }
 
     @Transactional
-    public Mono<Void> deleteFromCart(Long itemId) {
-        return cartItemRepository.deleteByItemId(itemId);
+    public Mono<Void> deleteFromCart(Long userId, Long itemId) {
+        return cartItemRepository.deleteByUserIdAndItemId(userId, itemId);
     }
 
-    public Flux<ItemDTO> getCartItems() {
-        return cartItemRepository.findAll()
+    public Flux<ItemDTO> getCartItems(Long userId) {
+        return cartItemRepository.findByUserId(userId)
                 .flatMap(cartItem -> itemRepository.findById(cartItem.getItemId())
                         .map(item -> {
                             item.setCount(cartItem.getQuantity());
@@ -64,14 +64,14 @@ public class CartService {
                 );
     }
 
-    public Mono<Long> getCartTotal() {
-        return getCartItems()
+    public Mono<Long> getCartTotal(Long userId) {
+        return getCartItems(userId)
                 .map(item -> item.price() * item.count())
                 .reduce(0L, Long::sum);
     }
 
     @Transactional
-    public Mono<Void> clearCart() {
-        return cartItemRepository.deleteAll();
+    public Mono<Void> clearCart(Long userId) {
+        return cartItemRepository.deleteByUserId(userId);
     }
 }

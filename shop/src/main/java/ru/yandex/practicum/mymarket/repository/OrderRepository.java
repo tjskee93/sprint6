@@ -7,5 +7,5 @@ import ru.yandex.practicum.mymarket.model.Order;
 
 @Repository
 public interface OrderRepository extends R2dbcRepository<Order, Long> {
-    Flux<Order> findAllByOrderByOrderDateDesc();
+    Flux<Order> findByUserIdOrderByOrderDateDesc(Long userId);
 }
