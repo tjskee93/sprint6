@@ -21,14 +21,14 @@ class OrderRepositoryTest extends MyMarketAppApplicationTests {
         orderRepository.deleteAll().block();
 
         LocalDateTime now = LocalDateTime.now();
-        orderRepository.save(new Order(null, now.minusDays(2), null, null)).block();
-        orderRepository.save(new Order(null, now.minusDays(1), null, null)).block();
-        orderRepository.save(new Order(null, now, null, null)).block();
+        orderRepository.save(new Order(null, 1L, now.minusDays(2), null, null)).block();
+        orderRepository.save(new Order(null,1L, now.minusDays(1), null, null)).block();
+        orderRepository.save(new Order(null,1L, now, null, null)).block();
     }
 
     @Test
     void findAllByOrderByOrderDateDesc_ShouldReturnOrdersSortedDescending() {
-        List<LocalDateTime> dates = orderRepository.findAllByOrderByOrderDateDesc()
+        List<LocalDateTime> dates = orderRepository.findByUserIdOrderByOrderDateDesc(1L)
                 .map(Order::getOrderDate)
                 .collectList()
                 .block();
@@ -39,7 +39,7 @@ class OrderRepositoryTest extends MyMarketAppApplicationTests {
 
     @Test
     void save_ShouldCreateNewOrder() {
-        Order newOrder = new Order(null, LocalDateTime.now(), null, null);
+        Order newOrder = new Order(null, 1L, LocalDateTime.now(), null, null);
 
         Order saved = orderRepository.save(newOrder).block();
 

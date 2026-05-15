@@ -53,9 +53,9 @@ public class ItemService {
                 .switchIfEmpty(Mono.error(new RuntimeException("Товар не найден, id: " + id)));
     }
 
-    public Mono<ItemDTO> getItemWithCartCount(Long id) {
+    public Mono<ItemDTO> getItemWithCartCount(Long userId, Long id) {
         return getItemById(id)
-                .flatMap(item -> cartItemRepository.findByItemId(item.getId())
+                .flatMap(item -> cartItemRepository.findByUserIdAndItemId(userId, item.getId())
                         .map(cartItem -> {
                             item.setCount(cartItem.getQuantity());
                             return item;
@@ -67,12 +67,12 @@ public class ItemService {
     }
 
     @Transactional
-    public Mono<Void> updateCart(Long id, String action) {
+    public Mono<Void> updateCart(Long userId, Long id, String action) {
         log.debug("Обновление корзины: id={}, action={}", id, action);
 
         Mono<Void> updateAction = switch (action) {
-            case "PLUS" -> cartService.addToCart(id);
-            case "MINUS" -> cartService.removeFromCart(id);
+            case "PLUS" -> cartService.addToCart(userId, id);
+            case "MINUS" -> cartService.removeFromCart(userId, id);
             default -> Mono.empty();
         };
 
@@ -86,7 +86,7 @@ public class ItemService {
         return itemCacheService.deleteItem(id).then();
     }
 
-    public Mono<List<List<ItemDTO>>> getItems(String search, String sort, int pageNumber, int pageSize) {
+    public Mono<List<List<ItemDTO>>> getItems(String search, String sort, int pageNumber, int pageSize, Long userId) {
         int offset = (pageNumber - 1) * pageSize;
 
         Flux<Item> itemsFlux;
@@ -117,7 +117,7 @@ public class ItemService {
         }
 
         return itemsFlux
-                .flatMap(item -> cartItemRepository.findByItemId(item.getId())
+                .flatMap(item -> cartItemRepository.findByUserIdAndItemId(userId, item.getId())
                         .map(cartItem -> {
                             item.setCount(cartItem.getQuantity());
                             return item;

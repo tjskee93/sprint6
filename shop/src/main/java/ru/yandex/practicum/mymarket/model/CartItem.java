@@ -16,6 +16,8 @@ public class CartItem {
     @Id
     private Long id;
 
+    private Long userId;
+
     private Long itemId;
 
     private int quantity;
@@ -23,7 +25,8 @@ public class CartItem {
     @Transient
     private Item item;
 
-    public CartItem(Long itemId, int quantity) {
+    public CartItem(Long userId, Long itemId, int quantity) {
+        this.userId = userId;
         this.itemId = itemId;
         this.quantity = quantity;
     }

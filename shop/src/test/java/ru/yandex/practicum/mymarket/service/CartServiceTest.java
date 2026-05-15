@@ -35,16 +35,16 @@ class CartServiceTest {
     @BeforeEach
     void setUp() {
         testItem = new Item(1L, "Товар", "Описание", "images/test.jpg", 100L, 0);
-        testCartItem = new CartItem(1L, 2);
+        testCartItem = new CartItem(1L, 1L, 2);
     }
 
     @Test
     void addToCart_WithNewItem_ShouldCreateNewCartItem() {
         when(itemRepository.findById(1L)).thenReturn(Mono.just(testItem));
-        when(cartItemRepository.findByItemId(1L)).thenReturn(Mono.empty());
-        when(cartItemRepository.save(any(CartItem.class))).thenReturn(Mono.just(new CartItem(1L, 1)));
+        when(cartItemRepository.findByUserIdAndItemId(1L, 1L)).thenReturn(Mono.empty());
+        when(cartItemRepository.save(any(CartItem.class))).thenReturn(Mono.just(new CartItem(1L,1L, 1)));
 
-        cartService.addToCart(1L).block();
+        cartService.addToCart(1L, 1L).block();
 
         verify(cartItemRepository, times(1)).save(any(CartItem.class));
     }
@@ -54,7 +54,7 @@ class CartServiceTest {
         when(itemRepository.findById(999L)).thenReturn(Mono.empty());
 
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            cartService.addToCart(999L).block();
+            cartService.addToCart(1L,999L).block();
         });
 
         assertThat(exception.getMessage()).isEqualTo("Товар не найден");
@@ -63,26 +63,26 @@ class CartServiceTest {
 
     @Test
     void getCartTotal_ShouldReturnSumOfAllItems() {
-        CartItem cartItem1 = new CartItem(1L, 2);
-        CartItem cartItem2 = new CartItem(2L, 1);
+        CartItem cartItem1 = new CartItem(1L,1L, 2);
+        CartItem cartItem2 = new CartItem(1L,2L, 1);
         Item item1 = new Item(1L, "Товар 1", "Описание 1", "images/1.jpg", 100L, 0);
         Item item2 = new Item(2L, "Товар 2", "Описание 2", "images/2.jpg", 200L, 0);
 
-        when(cartItemRepository.findAll()).thenReturn(Flux.just(cartItem1, cartItem2));
+        when(cartItemRepository.findByUserId(1L)).thenReturn(Flux.just(cartItem1, cartItem2));
         when(itemRepository.findById(1L)).thenReturn(Mono.just(item1));
         when(itemRepository.findById(2L)).thenReturn(Mono.just(item2));
 
-        Long total = cartService.getCartTotal().block();
+        Long total = cartService.getCartTotal(1L).block();
 
         assertThat(total).isEqualTo(400L);
     }
 
     @Test
     void clearCart_ShouldDeleteAllItems() {
-        when(cartItemRepository.deleteAll()).thenReturn(Mono.empty());
+        when(cartItemRepository.deleteByUserId(1L)).thenReturn(Mono.empty());
 
-        cartService.clearCart().block();
+        cartService.clearCart(1L).block();
 
-        verify(cartItemRepository, times(1)).deleteAll();
+        verify(cartItemRepository, times(1)).deleteByUserId(1L);
     }
 }

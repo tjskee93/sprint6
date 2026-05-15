@@ -4,12 +4,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Mono;
 import ru.yandex.practicum.mymarket.model.dto.ItemDTO;
 import ru.yandex.practicum.mymarket.model.dto.PagingDTO;
 import ru.yandex.practicum.mymarket.service.ItemService;
+import ru.yandex.practicum.mymarket.service.UserService;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -19,6 +22,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
 @WebFluxTest(ItemController.class)
+@WithMockUser(username = "testuser", roles = "USER")
 class ItemControllerTest {
 
     @Autowired
@@ -26,6 +30,9 @@ class ItemControllerTest {
 
     @MockitoBean
     private ItemService itemService;
+
+    @MockitoBean
+    private UserService userService;
 
     @Test
     void getItems_ShouldReturnItemsPage() throws Exception {
@@ -35,10 +42,11 @@ class ItemControllerTest {
 
         PagingDTO paging = new PagingDTO(5, 1, false, true, 10L, 50L);
 
-        when(itemService.getItems(any(), any(), anyInt(), anyInt()))
+        when(itemService.getItems(any(), any(), anyInt(), anyInt(), anyLong()))
                 .thenReturn(Mono.just(items));
         when(itemService.getPagingInfo(any(), any(), anyInt(), anyInt()))
                 .thenReturn(Mono.just(paging));
+        when(userService.getCurrentUserId()).thenReturn(Mono.just(1L));
 
         webTestClient.get()
                 .uri("/items?pageNumber=1&pageSize=5")
@@ -52,9 +60,12 @@ class ItemControllerTest {
 
     @Test
     void updateCart_ShouldRedirect() throws Exception {
-        when(itemService.updateCart(any(), any())).thenReturn(Mono.empty());
+        when(itemService.updateCart(any(), any(), any())).thenReturn(Mono.empty());
+        when(userService.getCurrentUserId()).thenReturn(Mono.just(1L));
 
-        webTestClient.post()
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.csrf())//добавляем токен
+                .post()
                 .uri("/items")
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .bodyValue("id=1&action=PLUS&pageNumber=1&pageSize=5")
@@ -65,11 +76,14 @@ class ItemControllerTest {
 
     @Test
     void updateCart_WithSearch_ShouldRedirectWithSearch() throws Exception {
-        when(itemService.updateCart(any(), any())).thenReturn(Mono.empty());
+        when(itemService.updateCart(any(), any(), any())).thenReturn(Mono.empty());
+        when(userService.getCurrentUserId()).thenReturn(Mono.just(1L));
         String encodedSearch = URLEncoder.encode("тест", StandardCharsets.UTF_8);
         String expectedLocation = "/items?search=" + encodedSearch + "&sort=ALPHA&pageNumber=2&pageSize=10";
 
-        webTestClient.post()
+        webTestClient
+                .mutateWith(SecurityMockServerConfigurers.csrf())//добавляем токен
+                .post()
                 .uri("/items")
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .bodyValue("id=1&search=тест&action=PLUS&sort=ALPHA&pageNumber=2&pageSize=10")

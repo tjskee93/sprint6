@@ -36,8 +36,8 @@ public class OrderService {
     private PaymentClientService paymentClientService;
 
     @Transactional
-    public Mono<Order> createOrder() {
-        return cartService.getCartTotal()
+    public Mono<Order> createOrder(Long userId) {
+        return cartService.getCartTotal(userId)
                 .flatMap(total -> {
                     if (total == 0) {
                         return Mono.error(new RuntimeException("Корзина пуста"));
@@ -49,13 +49,13 @@ public class OrderService {
                             if (!success) {
                                 return Mono.error(new RuntimeException("Оплата не прошла. Недостаточно средств или сервис недоступен."));
                             }
-                            return createOrderFromCart();
+                            return createOrderFromCart(userId);
                         })
                 );
     }
 
-    private Mono<Order> createOrderFromCart() {
-        return cartService.getCartItems()
+    private Mono<Order> createOrderFromCart(Long userId) {
+        return cartService.getCartItems(userId)
                 .collectList()
                 .flatMap(cartItems -> {
                     if (cartItems.isEmpty()) {
@@ -63,6 +63,7 @@ public class OrderService {
                     }
 
                     Order order = new Order(LocalDateTime.now());
+                    order.setUserId(userId);
 
                     return orderRepository.save(order)
                             .flatMap(savedOrder ->
@@ -80,15 +81,15 @@ public class OrderService {
                                             .collectList()
                                             .flatMap(savedItems -> {
                                                 savedOrder.setItems(savedItems);
-                                                return cartService.clearCart()
+                                                return cartService.clearCart(userId)
                                                         .thenReturn(savedOrder);
                                             })
                             );
                 });
     }
 
-    public Flux<OrderDTO> getAllOrders() {
-        return orderRepository.findAllByOrderByOrderDateDesc()
+    public Flux<OrderDTO> getAllOrders(Long userId) {
+        return orderRepository.findByUserIdOrderByOrderDateDesc(userId)
                 .flatMap(order -> orderItemRepository.findByOrderId(order.getId())
                         .collectList()
                         .map(orderItems -> {
@@ -108,15 +109,15 @@ public class OrderService {
                 );
     }
 
-    public Mono<OrderDTO> getOrderById(Long id) {
-        return orderRepository.findById(id)
+    public Mono<OrderDTO> getOrderById(Long userId, Long orderId) {
+        return orderRepository.findById(orderId)
                 .switchIfEmpty(Mono.error(new RuntimeException("Заказ не найден")))
                 .flatMap(order -> orderItemRepository.findByOrderId(order.getId())
                         .collectList()
                         .map(orderItems -> {
                             List<ItemDTO> items = orderItems.stream()
                                     .map(orderItem -> new ItemDTO(
-                                            null,
+                                            orderItem.getItemId(),
                                             orderItem.getTitle(),
                                             null,
                                             null,

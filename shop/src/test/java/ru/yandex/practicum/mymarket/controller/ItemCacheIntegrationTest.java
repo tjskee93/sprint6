@@ -3,7 +3,11 @@ package ru.yandex.practicum.mymarket.controller;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import ru.yandex.practicum.mymarket.model.Item;
 import ru.yandex.practicum.mymarket.repository.ItemRepository;
@@ -12,10 +16,14 @@ import ru.yandex.practicum.mymarket.service.ItemCacheService;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureWebTestClient
+@WithMockUser(username = "testuser", roles = "USER")
 class ItemCacheIntegrationTest {
 
     @Autowired
     private WebTestClient webTestClient;
+
+    private WebTestClient webTestClientWithCsrf;
 
     @Autowired
     private ItemRepository itemRepository;
@@ -27,6 +35,10 @@ class ItemCacheIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        // Создаем клиент с CSRF
+        webTestClientWithCsrf = webTestClient.mutate()
+                .apply(SecurityMockServerConfigurers.csrf())
+                .build();
         itemRepository.deleteAll().block();
         itemCacheService.deleteItem(1L).block();
 
@@ -56,7 +68,8 @@ class ItemCacheIntegrationTest {
     @Test
     void updateCart_ShouldEvictCache() {
         // Сначала загружаем товар (попадает в кэш)
-        webTestClient.get()
+        webTestClient
+                .get()
                 .uri("/items/" + testItemId)
                 .exchange()
                 .expectStatus().isOk();
@@ -65,7 +78,8 @@ class ItemCacheIntegrationTest {
         assertThat(itemCacheService.hasKey(testItemId).block()).isTrue();
 
         // Обновляем корзину (должно очистить кэш)
-        webTestClient.post()
+        webTestClientWithCsrf
+                .post()
                 .uri("/items")
                 .bodyValue("id=" + testItemId + "&action=PLUS&pageNumber=1&pageSize=5")
                 .header("Content-Type", "application/x-www-form-urlencoded")
